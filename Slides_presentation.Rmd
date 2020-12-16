@@ -1,0 +1,216 @@
+---
+title: |
+  | Projet 8 : Modèle Proie/Prédateur
+  | Programmation R (ISV51)
+author: |
+  | Astrid WINKLER 20180110
+  | Louise Weber 20184383
+  | Lucie GOMES 20180415
+date: "Jeudi 17 décembre 2020"
+output:
+  beamer_presentation:
+    slide_level: 2
+    toc: true
+  slidy_presentation: default
+subtitle: L3 Bio-Info (Université d'Evry - Paris-Saclay)
+linkcolor: 'blue'
+---
+
+
+# Introduction
+
+## Relation Proie - Prédateur 
+
+Représente l'interaction dynamique entre les populations de proies et de prédateurs pendant de longues périodes. 
+Cette relation: 
+
+- permet des avancées scientifiques
+- permet de prédire des estimations de densité de populations d'animaux à un moment donné
+- est modélisée par des équations différentielles, les équations de Lokta Volterra
+
+
+## Equations de Lokta Volterra
+$$
+\{\frac{dx(t)}{dt} = x(t)\times(\alpha-\beta\times y(t))
+$$
+$$
+\{\frac{dy(t)}{dt} = y(t)\times(\delta\times x(t)-\gamma)
+$$
+Avec :
+
+-	t -> temps
+-	x(t) -> effectif des proies en fonction du temps
+-	y(t) -> effectif des prédateurs en fonction du temps
+- $\alpha$ -> taux de reproduction des proies (constante)
+- $\beta$ -> taux de mortalité des proies dû aux prédateurs rencontrés
+- $\delta$ -> taux reproduction des prédateurs en fonction des proies rencontrées et mangées
+- $\gamma$ -> taux de mortalité des prédateurs (constant)
+
+
+***
+
+### Observation
+
+Voici l'évolution des populations de lynx et de lièvre observé au Canada: 
+
+\begin{center}
+Evolution des populations de lynx et de lièvres sur 90 ans
+\includegraphics[width=7cm]{images_simulations/observationLynxLapin.JPG}
+\end{center}
+
+- fluctuations périodiques
+- corrélation entre les fluctuations des deux populations
+
+***
+
+### Un système simpliste
+
+Nous observerons par la suite que nous n'obtenons pas exactement les mêmes courbes que les observations expérimentales car le systèmes est simplifiés et ne prend pas en compte beaucoup de paramètres biologiques.
+
+Quelques exemples : 
+
+1) l'âge des proies (faculté de reproduction, capacité à échapper aux prédateurs, etc...)
+2) la probabilté de rencontre de deux individus de sexes opposés (alors que souvent grand territoire)
+3) Proie et prédateur exclusifs
+
+# I. Simulation du système d'équation
+
+## A] Modèle d'Euler
+
+```{r, results = 'hide'}
+
+methodEuler<-function(z,a,b,c,d,h,n){
+  Z<-data.frame(t=0)
+  Z<-cbind(Z,z)  
+  for(i in 1:n){
+    prey<-Z$prey[i]
+    pred<-Z$pred[i]
+    if(prey<1||pred<1){
+      return (Z)
+    } 
+    res<-modelLV(data.frame(prey=prey,pred=pred),
+                 a,b,c,d)
+    new_prey<-prey+res$xdt*h
+    new_pred<-pred+res$ydt*h
+    Z<-rbind(Z,data.frame(t=i,prey=new_prey,
+                          pred=new_pred))
+  }
+  return(Z)
+}
+
+```
+
+
+***
+Ici on part avec les populations initiales de 800 proies et 400 prédateurs.
+
+\begin{center}
+\includegraphics[width=11cm]{images_simulations/plots_euler.PNG}
+\end{center}
+
+Le modèle n'est pas périodique.
+
+## Limites du modèle d'Euler
+
+Une modification même minime des constantes (c=0.005 au lieu de c=0.001) peut décimer une population extrêmement rapidement.
+
+\begin{center}
+\includegraphics[width=10cm]{images_simulations/plots_euler_modif.PNG}
+\end{center}
+
+On recherche donc un modèle plus stable présentant une rélle périodicité.
+
+## B] Modèle de Runge-Kutta
+```{r, eval=FALSE}
+methodRK4<-function(z,a,b,c,d,h,n){
+  Z<-data.frame(t=0)
+  Z<-cbind(Z,z)
+  for(i in 1:n){
+    if(Z$prey[i]<1||Z$pred[i]<1){return (Z)} 
+    res<-data.frame(prey=Z$prey[i],pred=Z$pred[i])
+    k1<-modelLV(res,a,b,c,d)
+    
+    res<-data.frame(prey=Z$prey[i]+h/2*k1[[1]],
+                    pred=Z$pred[i]+h/2*k1[[2]])
+    k2<-modelLV(res,a,b,c,d)
+    
+    res<-data.frame(prey=Z$prey[i]+h/2*k2[[1]],
+                    pred=Z$pred[i]+h/2*k2[[2]])
+    k3<-modelLV(res,a,b,c,d)
+      
+```
+
+***
+```{r, eval=FALSE}
+    res<-data.frame(prey=Z$prey[i]+h*k3[[1]],
+                    pred=Z$pred[i]+h*k3[[2]])
+    k4<-modelLV(res,a,b,c,d)
+    
+    prey<-Z$prey[i]+ h/6*(k1[[1]]+2*k2[[1]]+2*k3[[1]]
+                          +k4[[1]])
+    pred<-Z$pred[i]+ h/6*(k1[[2]]+2*k2[[2]]+2*k3[[2]]
+                          +k4[[2]])
+    Z<-rbind(Z,data.frame(t=i,prey=prey,pred=pred))
+  }
+  return (Z)
+}
+```
+
+***
+### Résultats de simulation
+
+Calcul plus précis de la population au temps d'après par découpage de l'interval de temps (calculs intermédiaires des k1,k2,k3,k4)
+
+On obtient un modèle stable et périodique.
+
+\begin{center}
+ Simulations avec la méthode Runge-Kutta
+\includegraphics[width=11cm]{images_simulations/plots_rk4.PNG},
+\end{center}
+
+# II. Ajout d'un aléa à la simulation
+
+## Quel est le but ?
+
+Jusqu'à maintenant, nous avions supposé que la seule cause de mortalité des proies étaient leurs prédateurs
+or il existe d'autres causes comme:
+
+- Impact de l’homme (pollution, braconnage)
+- Epidémie
+- Choc environnemental (inondation, sécheresse)
+- Autres…
+
+Cela permet aux scientifiques de simuler des chutes brutales de populations dont la cause n'est pas les prédateurs
+
+## Variable aléatoire
+
+Création d'une fonction simulant ce choc aléatoire
+
+```{r}
+calculChoc<-function(nExp,r,nNorm,SD){
+  choc<-0
+  myT<- rexp(nExp, rate=r)
+  if(myT>(1/r)*2+1){ 
+    choc<-abs(rnorm(n=nNorm,sd=SD))
+  }
+  return (choc)
+}
+```
+
+## Résultats après ajout de la variable aléatoire
+
+Différents résultats possibles pour des valeurs initiales identiques dûs au caractères aléatoire de la variable.
+
+\begin{center}
+Simulations de la méthode Runge-Kutta avec chocs
+\includegraphics[width=10cm]{images_simulations/chocs.PNG}
+\end{center}
+
+# Conclusion
+
+- Utilisation de différentes analyses numériques pour gagner en prècision
+- Critiques sur le modèle initiale avec des hypothèses fortes et peu réalistes
+- Il existe d'autres modèles plus réalistes de les équations de Lokta Volterra présentées : celles avec croissances logistique ou encore le modèle de Rosenzweig-MacArthur
+
+
+
