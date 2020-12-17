@@ -1,11 +1,11 @@
-#méthode Runge_Kutta d'ordre 4 avec chocs
+#mÃ©thode Runge_Kutta d'ordre 4 avec chocs
 
 methodRK4_choc<-function(z,a,b,c,d,h,n,nExp,r,nNorm,SD){
   Z<-data.frame(t=0)
   Z<-cbind(Z,z)
   for(i in 1:n){
     choc<- calculChoc(nExp,r,nNorm,SD)
-    if(Z$prey[i]<1||Z$pred[i]<1){return (Z)} #condition d'arrêt si une population s'éteint
+    if(Z$prey[i]<1||Z$pred[i]<1){return (Z)} #condition d'arrÃªt si une population s'Ã©teint
       res<-data.frame(prey=Z$prey[i],pred=Z$pred[i])
       k1<-modelLV(res,a,b,c,d)
   
